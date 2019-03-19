@@ -51,7 +51,7 @@ def main():
 
                         last_message_id = message.id
                 sleep(.5)
-            sms_service.close()
+            #sms_service.close()
 
 if __name__ == "__main__":
     main()
