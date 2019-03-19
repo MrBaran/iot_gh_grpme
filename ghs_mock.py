@@ -6,7 +6,7 @@ class greenhouse_mock(object):
     name = None
     house_id = None
     group_id = "AAAA"
-    house_number = "01"
+    house_number = "02"
     version = None
 
 class ghs_mock(object):

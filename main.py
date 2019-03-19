@@ -18,7 +18,7 @@ def main():
     last_message_id = None
 
     
-    with SMSGroupMeService(groupMe_token) as sms_service:
+    with SMSGroupMeService(groupMe_token, True) as sms_service:
         new_phone = None
         print()
         print("Enter a mobile phone number to assign to the GroupMe service.")
@@ -51,7 +51,7 @@ def main():
 
                         last_message_id = message.id
                 sleep(.5)
-            #sms_service.close()
+            sms_service.close()
 
 if __name__ == "__main__":
     main()

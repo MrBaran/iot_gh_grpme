@@ -49,7 +49,7 @@ class SMSGroupMeService(threading.Thread):
             self.ghs = IoTGreenhouseService()
         self._access_token = access_token
         
-        self._group_name = "%s_%s" % ("iot_gh", self.ghs.greenhouse.group_id)
+        self._group_name = "%s_%s_%s" % ("iot_gh", self.ghs.greenhouse.group_id, self.ghs.greenhouse.house_number )
         self.bot_name = "%s%s" % ("gh",self.ghs.greenhouse.house_number)
         
         self.commands = SMSCommands()
@@ -71,7 +71,7 @@ class SMSGroupMeService(threading.Thread):
     def run(self):
         self.scanning = True
         self._send_message("%s is on-line." % self.bot_name)
-        while True:
+        while self.scanning:
             next_commands = self._get_next_commands()
             if next_commands != None:
                 self._execute_commands(next_commands)
@@ -84,11 +84,20 @@ class SMSGroupMeService(threading.Thread):
         pass
 
     def close(self):
-        for member in self.members:
-            id = self. _get_member_id(member.result_id)
-            self._remove_member(id)
-            self._send_message("%s removed from SMS service." % key)
+        self._send_message("Removing group and members")
+        time.sleep(1)
+        self._delete_group()
         
+    def _delete_group(self):
+        params = {"token": self._access_token}
+        headers = {"content-type": "application/json"}
+        end_point = "/groups/%s/destroy" % self._group_id
+        url = "%s%s" % (self.BASE_URL, end_point)
+        r = requests.post(url, headers=headers, params=params)
+        if r.status_code != 200:
+            raise Exception("Bad request. Unable to remove group. Please verify your access token." + r.text)
+
+       
     def _get_group_id(self):
         group_id = None
         params = {"token": self._access_token}
