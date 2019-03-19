@@ -4,8 +4,7 @@
 '''
 from time import sleep
 
-#from iot_gh.IoTGreenhouseService import IoTGreenhouseService
-from ghs_mock import ghs_mock as IoTGreenhouseService
+
 from SMSGroupMeService import SMSGroupMeService
 
 def main():
@@ -18,8 +17,8 @@ def main():
 
     last_message_id = None
 
-    ghs = IoTGreenhouseService()
-    with SMSGroupMeService(groupMe_token, ghs) as sms_service:
+    
+    with SMSGroupMeService(groupMe_token, True) as sms_service:
         new_phone = None
         print()
         print("Enter a mobile phone number to assign to the GroupMe service.")
@@ -42,7 +41,8 @@ def main():
             print("For a list of commands enter:  %s #help" % sms_service.bot_name)
             print()
 
-            while True:
+            sms_service.start()
+            while sms_service.scanning:
                 if sms_service.last_message != None:
                     message = sms_service.last_message
                     if message.id != last_message_id:
@@ -51,6 +51,7 @@ def main():
 
                         last_message_id = message.id
                 sleep(.5)
+            sms_service.close()
 
 if __name__ == "__main__":
     main()

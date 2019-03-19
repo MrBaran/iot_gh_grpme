@@ -4,6 +4,8 @@ import requests
 import time
 from SMSCommands import SMSCommands
 
+from ghs_mock import ghs_mock as MockIoTGreenhouseService
+
 class SMSTextMessage(object):
     id = None
     name = None
@@ -14,6 +16,7 @@ class SMSGroupMember(object):
     id = None
     name = None
     phone_number = None
+    result_id = None
 
     def __init__(self, name, phone_number):
         self.name = name
@@ -28,23 +31,29 @@ class SMSGroupMeService(threading.Thread):
     _group_id = ""
     _bot_id = ""
     _last_scanned_message_id = None
-
+    
+    scanning = False
     bot_name = ""
     commands = None
     members = None
     last_message = None
     command_list = None
  
-    def __init__(self, access_token, greenhouse_service, bot_name = "gh"):
+    def __init__(self, access_token, testing=False):
         threading.Thread.__init__(self)
         
+        if testing:
+            self.ghs = MockIoTGreenhouseService()
+        else:
+            from iot_gh.IoTGreenhouseService import IoTGreenhouseService
+            self.ghs = IoTGreenhouseService()
         self._access_token = access_token
-        self.ghs = greenhouse_service
+        
         self._group_name = "%s_%s" % ("iot_gh", self.ghs.greenhouse.group_id)
         self.bot_name = "%s%s" % ("gh",self.ghs.greenhouse.house_number)
         
         self.commands = SMSCommands()
-        self.members = {}
+        self.members = []
 
         self._group_id = self._get_group_id()
         if self._group_id == None:
@@ -57,9 +66,11 @@ class SMSGroupMeService(threading.Thread):
         #self._last_scanned_message_id = self._get_last_scanned_message_id()
         
         self.daemon = True
-        self.start()
+        #self.start()
 
     def run(self):
+        self.scanning = True
+        self._send_message("%s is on-line." % self.bot_name)
         while True:
             next_commands = self._get_next_commands()
             if next_commands != None:
@@ -70,8 +81,13 @@ class SMSGroupMeService(threading.Thread):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+    def close(self):
         for member in self.members:
-            self._remove_member(member)
+            id = self. _get_member_id(member.result_id)
+            self._remove_member(id)
+            self._send_message("%s removed from SMS service." % key)
         
     def _get_group_id(self):
         group_id = None
@@ -148,18 +164,19 @@ class SMSGroupMeService(threading.Thread):
         if r.status_code != 200:
             raise Exception("Bad request. Unable to disable SMS mode. " + r.text)
        
-    def _get_member_id(self, member_key):
+    def _get_member_id(self, response_id):
+        params = {"token": self._access_token}
+        params["limit"] = 1 
         headers = {"content-type": "application/json"}
-        end_point = "members/results/:"
-        url = "%s/%s%s" % (self.BASE_URL, end_point, member_key)
-        r = requests.get(url, headers=headers)
+        end_point = "/groups/%s/members/results/%s" % (self._group_id, response_id)
+        url = "%s%s" % (self.BASE_URL, end_point)
+        r = requests.get(url, headers=headers, params=params)
         if r.status_code != 200:
             raise Exception("Bad request. Unable to fetch bot id. " + r.text)
         else:
             members = r.json()["response"]
             #should be only one
-            for member in members:
-                member_id = member["id"]
+            member_id = members["members"][0]["id"]
                    
         return member_id
     
@@ -167,7 +184,7 @@ class SMSGroupMeService(threading.Thread):
         params = {"token": self._access_token}
         params["limit"] = 1 
         headers = {"content-type": "application/json"}
-        end_point = "groups/%s/members/%s/remove" % self._group_id, member_id
+        end_point = "groups/%s/members/%s/remove" % (self._group_id, member_id)
         url = "%s/%s" % (self.BASE_URL, end_point)
         r = requests.get(url, headers=headers, params=params)
         if r.status_code != 200:
@@ -178,7 +195,6 @@ class SMSGroupMeService(threading.Thread):
         if phone_number not in self.members:
             user_name = "User%s-%d" % (self.ghs.greenhouse.house_number,len(self.members) + 1)
             member = SMSGroupMember(user_name, phone_number)
-            self.members[phone_number] = member
             params = {"token": self._access_token}
             params["limit"] = 1  
             payload = {"members": [{"nickname": member.name, "phone_number": member.phone_number, "guid": member.name}]} 
@@ -188,7 +204,9 @@ class SMSGroupMeService(threading.Thread):
             r = requests.post(url, headers=headers, params=params, json=payload)
             if r.status_code != 202:
                 raise Exception("Bad request. Unable to create member request. " + r.text)
-        
+            else:
+                member.result_id = r.json()["response"]["results_id"]
+                self.members.append(member)
 
     
     def _send_message(self, message):
@@ -276,9 +294,10 @@ class SMSGroupMeService(threading.Thread):
                 
                 if  inner.gh_function != None:
                     try:
-                        exec("self.%s" % inner.gh_function)
+                        this_function = "self.%s" % inner.gh_function
+                        exec(this_function)
                     except:
-                        self._send_message("Error: Invalid IoT Greenhouse command defined in command configuration file. %s" % c)
+                        self._send_message("Error: Invalid IoT Greenhouse command defined in command configuration file. %s" % inner.gh_function)
  
     def _valid_commands(self, commands):
         valid = True
@@ -303,6 +322,11 @@ class SMSGroupMeService(threading.Thread):
         except Exception as e:
             raise Exception("Unable to load commands. %s" % str(e))
 
+    def stop_SMS_service(self):
+        self.scanning = False
+        #m = "Service stopped."
+        #self._send_message(m)
+    
     def send_command_list(self):
          m = "Valid IoT Greenhouse commands are: %s" % " ".join(self.commands.keys() )
          self._send_message(m)
@@ -322,26 +346,26 @@ class SMSGroupMeService(threading.Thread):
         m = "Current greenhouse temperature is %s." % temp
         self._send_message(m)         
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
     
     
-    from iot_gh.IoTGreenhouseService import IoTGreenhouseService
-    ghs = IoTGreenhouseService()
+#    from iot_gh.IoTGreenhouseService import IoTGreenhouseService
+#    ghs = IoTGreenhouseService()
     
-    ACCESS_TOKEN = "oFmQLatuNvRR7Kpzs2wcp009r4MFHDSXZHOUG8o8"
-    t_service = GHTextingService(ACCESS_TOKEN, ghs)
+#    ACCESS_TOKEN = "oFmQLatuNvRR7Kpzs2wcp009r4MFHDSXZHOUG8o8"
+#    t_service = GHTextingService(ACCESS_TOKEN, ghs)
 
-    last_message_id = None;
-    while True:
-        if t_service.last_message != None:
-            if t_service.last_message.id != last_message_id:
-                name = t_service.last_message.name
-                text = t_service.last_message.text
-                print(name + "   " + text)
-                print()
+#    last_message_id = None;
+#    while True:
+#        if t_service.last_message != None:
+#            if t_service.last_message.id != last_message_id:
+#                name = t_service.last_message.name
+#                text = t_service.last_message.text
+#                print(name + "   " + text)
+#                print()
 
-                last_message_id = t_service.last_message.id
-            time.sleep(1)
+#                last_message_id = t_service.last_message.id
+#            time.sleep(1)
                 
 
 

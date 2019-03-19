@@ -18,6 +18,8 @@ class SMSCommands(collections.OrderedDict):
 
     def __init__(self):
         #self = collections.OrderedDict()
+        cmd = SMSCommand("#stop", "stop_SMS_service()", "Stops SMS texting service for this greenhouse. Removes users.","Service stopped.")
+        self[cmd.command] = cmd
         cmd = SMSCommand("#help", "send_command_list()", "Lists valid IoT Greenhouse texting commands.",None)
         self[cmd.command] = cmd
         cmd = SMSCommand("#help-verbose","send_command_details()","Detailed help on using the IoT Greenhouse texting service.",None)
