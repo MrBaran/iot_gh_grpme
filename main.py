@@ -13,12 +13,12 @@ def main():
     #name = input("Enter a short name for your greenhouse: ")
     #print("\nOpen your dev.groupme.com page. Access your token and copy here.")
     #token = input("GroupMe token: ")
-    groupMe_token = "cW3Q3QTXjx8ZUJPLozNwrO0zINyFx5Dig42g9NZa"
+    groupMe_token = "ZRkZAZGCYBROiAuuDON7nzBYERFYw2bDspakx9QL"
 
     last_message_id = None
 
     
-    with SMSGroupMeService(groupMe_token) as sms_service:
+    with SMSGroupMeService(groupMe_token, True) as sms_service:
         new_phone = None
         print()
         print("Enter a mobile phone number to assign to the GroupMe service.")
@@ -33,7 +33,7 @@ def main():
             print("No members added. Unable to continue.")
             return       
         else:
-            print("%i phone numbers have been added to this service.")
+            print("%d phone numbers have been added to this service." % member_count)
             print()
             print("Send direct messages to this greenhouse using %s" % sms_service.bot_name)
             print("Include a command using the hash (#) character.")
