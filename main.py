@@ -13,7 +13,7 @@ def main():
     #name = input("Enter a short name for your greenhouse: ")
     #print("\nOpen your dev.groupme.com page. Access your token and copy here.")
     #token = input("GroupMe token: ")
-    groupMe_token = "c1VEiaMw8KmlktkGwiW9gE9GeRJtfi4BWCStBXCp "
+    groupMe_token = "c1VEiaMw8KmlktkGwiW9gE9GeRJtfi4BWCStBXCp"
 
     last_message_id = None
 
